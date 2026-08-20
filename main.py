@@ -21,9 +21,13 @@ import re
 import sys
 from pathlib import Path
 
+from cik_lookup import load_cik_lookup
+from sec_client import SecClient
+
 ROOT = Path(__file__).resolve().parent
 FILERS = ROOT / "filers.csv"
 OUTPUT = ROOT / "output"
+CACHE = ROOT / ".cache"
 
 # Scope. See docs/01-source.md — filter report periods on reportDate, and exclude
 # anything accepted after the cutoff.
@@ -53,10 +57,25 @@ def run(user_agent: str, output: Path) -> None:
         4. parse into the schema                          docs/SCHEMA.md
         5. write output/filings.parquet and output/holdings.parquet
     """
-    raise NotImplementedError(
-        "Implement your pipeline here. Start with docs/01-source.md, then "
-        "docs/SCHEMA.md for the output contract."
+    client = SecClient(
+        user_agent=user_agent,
+        cache_dir=CACHE,
     )
+
+    try:
+        lookup_records = load_cik_lookup(
+            client,
+            CACHE / "sec" / "cik_lookup.csv",
+        )
+
+        print(
+            f"Loaded {len(lookup_records):,} official SEC CIK records."
+        )
+    finally:
+        client.write_manifest(
+            CACHE / "fetch_manifest.json"
+        )
+        client.close()
 
 
 def main() -> int:
