@@ -24,6 +24,8 @@ from pathlib import Path
 from cik_lookup import load_cik_lookup
 from sec_client import SecClient
 
+from cik_reconciliation import reconcile_ciks, write_reconciled_filers
+
 ROOT = Path(__file__).resolve().parent
 FILERS = ROOT / "filers.csv"
 OUTPUT = ROOT / "output"
@@ -71,6 +73,34 @@ def run(user_agent: str, output: Path) -> None:
         print(
             f"Loaded {len(lookup_records):,} official SEC CIK records."
         )
+
+        reconciled_filers = reconcile_ciks(
+            load_filers(),
+            lookup_records,
+        )
+
+        write_reconciled_filers(
+            reconciled_filers,
+            output / "filers.csv",
+        )
+
+        corrected = [
+            filer
+            for filer in reconciled_filers
+            if filer["cik_source"] == "corrected"
+        ]
+
+        print(
+            f"Verified {len(reconciled_filers)} managers; "
+            f"corrected {len(corrected)} CIK(s)."
+        )
+
+        for filer in corrected:
+            print(
+                f"Corrected: {filer['fund_name']} "
+                f"-> CIK {filer['cik']}"
+            )
+
     finally:
         client.write_manifest(
             CACHE / "fetch_manifest.json"
