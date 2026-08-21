@@ -29,6 +29,8 @@ from cik_reconciliation import reconcile_ciks, write_reconciled_filers
 from collections import Counter
 from filing_discovery import discover_filings
 
+from filing_download import download_filing_xmls
+
 
 ROOT = Path(__file__).resolve().parent
 FILERS = ROOT / "filers.csv"
@@ -121,6 +123,28 @@ def run(user_agent: str, output: Path) -> None:
 
         for form_type, count in sorted(form_counts.items()):
             print(f"  {form_type}: {count}")
+
+
+        filings = download_filing_xmls(
+            client=client,
+            filings=filings,
+            output_dir=output / "filings",
+        )
+
+        downloaded_paths = {
+            filing["output_xml_path"]
+            for filing in filings
+        }
+
+        if len(downloaded_paths) != 40:
+            raise ValueError(
+                "Expected 40 unique filing XML outputs; "
+                f"found {len(downloaded_paths)}."
+            )
+
+        print(
+            f"Downloaded {len(downloaded_paths)} filing XML files."
+        )
 
     finally:
         client.write_manifest(
