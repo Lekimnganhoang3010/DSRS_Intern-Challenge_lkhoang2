@@ -26,6 +26,10 @@ from sec_client import SecClient
 
 from cik_reconciliation import reconcile_ciks, write_reconciled_filers
 
+from collections import Counter
+from filing_discovery import discover_filings
+
+
 ROOT = Path(__file__).resolve().parent
 FILERS = ROOT / "filers.csv"
 OUTPUT = ROOT / "output"
@@ -100,6 +104,23 @@ def run(user_agent: str, output: Path) -> None:
                 f"Corrected: {filer['fund_name']} "
                 f"-> CIK {filer['cik']}"
             )
+
+        filings = discover_filings(
+            client=client,
+            filers=reconciled_filers,
+            report_periods=REPORT_PERIODS,
+            filing_date_cutoff=FILING_DATE_CUTOFF,
+        )
+
+        form_counts = Counter(
+            filing["form_type"]
+            for filing in filings
+        )
+
+        print(f"Discovered {len(filings)} in-scope filings.")
+
+        for form_type, count in sorted(form_counts.items()):
+            print(f"  {form_type}: {count}")
 
     finally:
         client.write_manifest(

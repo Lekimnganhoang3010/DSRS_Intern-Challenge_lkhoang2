@@ -21,6 +21,11 @@ LEGAL_SUFFIXES = {
     "PLC",
 }
 
+MANUAL_CIK_OVERRIDES = {
+    # SEC lookup has multiple Tudor entities; CIK 923093 is the 13F filer.
+    "Tudor Investment Corp": "923093",
+}
+
 
 def normalize_name(name: str) -> str:
     """Normalize harmless differences without using fuzzy matching."""
@@ -39,6 +44,10 @@ def normalize_name(name: str) -> str:
     normalized = re.sub(r"[^A-Z0-9\s]", "", normalized)
 
     tokens = normalized.split()
+
+    # SEC sometimes appends "ET AL" to a filing-manager name.
+    if len(tokens) >= 2 and tokens[-2:] == ["ET", "AL"]:
+        tokens = tokens[:-2]
 
     # "The Baupost Group" and "Baupost Group" refer to the same name here.
     if tokens and tokens[0] == "THE":
@@ -107,6 +116,11 @@ def reconcile_ciks(
         if supplied_cik_matches:
             final_cik = supplied_cik
             cik_source = "given"
+
+        elif fund_name in MANUAL_CIK_OVERRIDES:
+            final_cik = MANUAL_CIK_OVERRIDES[fund_name]
+            cik_source = "corrected"
+
         else:
             candidates = candidate_ciks_by_name[
                 normalized_fund_name
