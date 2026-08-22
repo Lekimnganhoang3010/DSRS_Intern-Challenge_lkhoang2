@@ -30,6 +30,8 @@ from collections import Counter
 from filing_discovery import discover_filings
 
 from filing_download import download_filing_xmls
+from filing_parser import parse_dataset
+from parquet_writer import write_parquet_outputs
 
 
 ROOT = Path(__file__).resolve().parent
@@ -145,6 +147,19 @@ def run(user_agent: str, output: Path) -> None:
         print(
             f"Downloaded {len(downloaded_paths)} filing XML files."
         )
+
+        filing_rows, holding_rows = parse_dataset(filings)
+
+        print(f"Parsed {len(filing_rows):,} filing rows.")
+        print(f"Parsed {len(holding_rows):,} holding rows.")
+
+        write_parquet_outputs(
+            filing_rows=filing_rows,
+            holding_rows=holding_rows,
+            output_dir=output,
+        )   
+
+        print("Wrote filings.parquet and holdings.parquet.")
 
     finally:
         client.write_manifest(
