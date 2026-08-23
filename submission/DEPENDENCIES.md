@@ -1,22 +1,19 @@
 # Dependencies
 
-Every library you added to `requirements-extra.txt`, with a one-line reason.
+I did not add any dependencies beyond the frozen packages provided by the challenge.
 
-We are not counting libraries — a well-chosen dependency is better engineering than a
-hand-rolled version of the same thing. What we are reading is whether you added each
-one deliberately.
+The pipeline uses:
 
-| Library | Version | Why |
-|---|---|---|
-| *example* | *2.1.0* | *replace this row* |
+- `httpx` for SEC HTTP requests.
+- `lxml` for XML parsing.
+- `pyarrow` for schema-controlled Parquet output.
+- `openai` through the frozen `agents/llm.py` interface.
+
+These were already included in the frozen `requirements.txt`.
 
 ## Anything you considered and rejected
 
-Optional, but the more interesting half. A library you looked at and decided against —
-and why — says more than the ones you kept.
-
-## Note
-
-Libraries that wrap 13F retrieval and parsing end to end will not, on their own,
-satisfy the schema or the quality report, and we will ask you to explain the edge cases
-in your output regardless of how you produced it. If you can explain it, you own it.
+I did not use an end-to-end 13F retrieval or parsing library. I used the provided
+general-purpose HTTP, XML, and Arrow libraries so that CIK reconciliation, EDGAR
+retrieval, namespace handling, duplicate preservation, and schema conversion remain
+explicit in my code.
