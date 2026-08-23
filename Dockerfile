@@ -18,7 +18,17 @@ USER root
 COPY requirements-extra.txt /app/requirements-extra.txt
 RUN pip install --no-cache-dir -r /app/requirements-extra.txt
 
-COPY --chown=runner:runner main.py /app/main.py
+COPY --chown=runner:runner \
+    main.py \
+    sec_client.py \
+    cik_lookup.py \
+    cik_reconciliation.py \
+    filing_discovery.py \
+    filing_download.py \
+    filing_parser.py \
+    parquet_writer.py \
+    /app/
+    
 COPY --chown=runner:runner agents/ /app/agents/
 
 USER runner
