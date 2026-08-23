@@ -1,76 +1,147 @@
-"""Your agent: a question in, a structured answer out.
-
-Yours to rewrite. One thing is fixed — `main(question) -> dict` must exist, because we
-call it directly:
-
-    python -m agents.answer "which manager held the largest Apple position in 2026 Q2?"
-
-Return this shape. Nothing else on stdout.
-
-    {
-      "answer":  <number | string | list | null>,
-      "unit":    "USD" | "SHARES" | "COUNT" | "PERCENT" | "NAME" | "DATE" | "NONE",
-      "sources": ["0001423053-26-000012", ...]
-    }
-
-`sources` is graded separately from `answer`, and it is the more diagnostic of the two.
-An agent that produces the right number without knowing which filings it came from is
-not one a researcher can trust with a question they cannot check by hand.
-
-Put logging on stderr. stdout carries the JSON and nothing else.
-
-See agents/llm.py for the model interface, and docs/04-serve.md for what is graded.
-"""
+"""Answer natural-language questions using the curated 13F dataset."""
 
 from __future__ import annotations
 
 import json
+import re
 import sys
-from pathlib import Path
 from typing import Any
 
-OUTPUT = Path(__file__).resolve().parents[1] / "output"
-FILINGS = OUTPUT / "filings.parquet"
-HOLDINGS = OUTPUT / "holdings.parquet"
-
-VALID_UNITS = {"USD", "SHARES", "COUNT", "PERCENT", "NAME", "DATE", "NONE"}
-
-
-def main(question: str) -> dict[str, Any]:
-    """Answer `question` against your dataset.
-
-    Do not rename this function or change its signature.
-    """
-    raise NotImplementedError("Implement your agent here. See docs/04-serve.md.")
+from agents.data_access import (
+    available_managers,
+    available_quarters,
+    load_dataset,
+)
+from agents.planner import plan_question
+from agents.query_engine import execute_plan, null_answer
 
 
-def _cli() -> int:
-    if len(sys.argv) < 2:
-        print('usage: python -m agents.answer "your question"', file=sys.stderr)
-        return 2
+ALLOWED_UNITS = {
+    "USD",
+    "SHARES",
+    "COUNT",
+    "PERCENT",
+    "NAME",
+    "DATE",
+    "NONE",
+}
 
-    result = main(sys.argv[1])
+ACCESSION_PATTERN = re.compile(
+    r"^\d{10}-\d{2}-\d{6}$"
+)
 
-    # Validated here so a shape mistake surfaces while you can still fix it. The grader
-    # parses stdout as JSON and reads exactly these three keys.
+
+def validate_answer(
+    result: Any,
+) -> dict[str, object]:
+    """Validate model-facing output before returning it."""
     if not isinstance(result, dict):
-        print(f"main() must return a dict, got {type(result).__name__}", file=sys.stderr)
-        return 1
-    missing = {"answer", "unit", "sources"} - set(result)
-    if missing:
-        print(f"result missing key(s): {sorted(missing)}", file=sys.stderr)
-        return 1
-    if result["unit"] not in VALID_UNITS:
-        print(f"unit must be one of {sorted(VALID_UNITS)}, got {result['unit']!r}",
-              file=sys.stderr)
-        return 1
-    if not isinstance(result["sources"], list):
-        print("sources must be a list of accession numbers", file=sys.stderr)
-        return 1
+        raise ValueError("Answer must be a dictionary.")
 
-    print(json.dumps(result))
+    answer = result.get("answer")
+    unit = result.get("unit")
+    sources = result.get("sources")
+
+    valid_scalar = (
+        answer is None
+        or isinstance(answer, (str, int, float))
+        and not isinstance(answer, bool)
+    )
+
+    valid_list = (
+        isinstance(answer, list)
+        and all(
+            isinstance(item, (str, int, float))
+            and not isinstance(item, bool)
+            for item in answer
+        )
+    )
+
+    if not valid_scalar and not valid_list:
+        raise ValueError("Answer has an invalid type.")
+
+    if unit not in ALLOWED_UNITS:
+        raise ValueError("Answer has an invalid unit.")
+
+    if not isinstance(sources, list):
+        raise ValueError("Sources must be a list.")
+
+    if not all(
+        isinstance(source, str)
+        and ACCESSION_PATTERN.fullmatch(source)
+        for source in sources
+    ):
+        raise ValueError("One or more sources are invalid.")
+
+    return {
+        "answer": answer,
+        "unit": unit,
+        "sources": sorted(set(sources)),
+    }
+
+
+def main(question: str) -> dict[str, object]:
+    """Answer one question without allowing failures to crash."""
+    if not isinstance(question, str) or not question.strip():
+        print("Question is empty.", file=sys.stderr)
+        return null_answer()
+
+    try:
+        filings, holdings = load_dataset()
+
+        plan = plan_question(
+            question.strip(),
+            available_managers(filings),
+            available_quarters(filings),
+        )
+
+        result = execute_plan(
+            plan,
+            filings,
+            holdings,
+        )
+
+        validated = validate_answer(result)
+
+        if validated["answer"] is None:
+            print(
+                "The question is unsupported or the dataset "
+                "does not contain enough information.",
+                file=sys.stderr,
+            )
+
+        return validated
+
+    except Exception as exc:
+        print(
+            f"Unable to answer safely: {exc}",
+            file=sys.stderr,
+        )
+        return null_answer()
+
+
+def cli() -> int:
+    """Command-line entry point."""
+    if len(sys.argv) < 2:
+        print(
+            "Usage: python -m agents.answer \"question\"",
+            file=sys.stderr,
+        )
+        result = null_answer()
+    else:
+        question = " ".join(sys.argv[1:])
+        result = main(question)
+
+    # stdout contains JSON and nothing else.
+    print(
+        json.dumps(
+            result,
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+    )
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(_cli())
+    raise SystemExit(cli())
