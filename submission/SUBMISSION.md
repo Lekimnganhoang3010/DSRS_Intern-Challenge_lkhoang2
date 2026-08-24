@@ -10,7 +10,7 @@
 Under 3 minutes, narrated, showing a cold-start pipeline run and the agent answering
 a question.
 
-- **Link:** ADD AFTER UPLOADING TO MEDIASPACE
+- **Link:** https://mediaspace.illinois.edu/media/t/1_7kwb38xi
 
 ## Chapters attempted
 
@@ -18,16 +18,16 @@ a question.
 - [x] 2 · Interrogate
 - [x] 3 · Structure
 - [x] 4 · Serve
-- [ ] 5 · Show
+- [x] 5 · Show
 - [ ] Bonus 1 — Notice attribution
 - [ ] Bonus 2 — CUSIP validation
 
 ## Checklist
 
-- [ ] `python check_submission.py` passes
+- [x] `python check_submission.py` passes
 - [x] Repo is **private** and `dsrsBOT` is a collaborator with Read access
-- [ ] Video uploaded to MediaSpace, visibility **Unlisted**, link tested
-- [ ] Repository URL submitted at <https://ikompete.dsrs.illinois.edu/competition/16>
+- [x] Video uploaded to MediaSpace, visibility **Unlisted**, link tested
+- [x] Repository URL submitted at <https://ikompete.dsrs.illinois.edu/competition/16>
 - [x] `python verify.py` passes
 - [x] Pipeline run twice; output is byte-identical
 - [x] `output/filings.parquet`, `output/holdings.parquet` committed
