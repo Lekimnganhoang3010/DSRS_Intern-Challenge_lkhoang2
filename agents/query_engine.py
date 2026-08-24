@@ -59,7 +59,7 @@ def largest_position(
             continue
 
         accession = str(holding["accession_number"])
-        filing = filing_index[accession]
+        filing = filing_index[accession]                                                   
         manager = str(filing["fund_name"])
 
         totals[manager] = (
